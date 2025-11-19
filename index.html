@@ -1,0 +1,58 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Файловый менеджер</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        ul { list-style-type: none; padding: 0; }
+        li { margin: 5px 0; }
+        a { text-decoration: none; color: #0366d6; }
+        a:hover { text-decoration: underline; }
+        .file { color: #586069; }
+        .folder { color: #0366d6; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Файловый менеджер</h1>
+    <div id="path"></div>
+    <div id="content"></div>
+
+    <script>
+        let currentPath = '';
+        
+        function loadFiles(path) {
+            currentPath = path || '';
+            document.getElementById('path').innerHTML = 
+                `<a href="#" onclick="loadFiles('')">Корневая папка</a>/${currentPath}`;
+            
+            fetch(`https://api.github.com/repos/tak-nado/SigmasEmpires/contents/${currentPath}`)
+                .then(r => r.json())
+                .then(files => {
+                    let content = '<ul>';
+                    files.forEach(file => {
+                        if (file.type === 'dir') {
+                            content += `<li class="folder">
+                                <a href="#" onclick="loadFiles('${currentPath ? currentPath + '/' : ''}${file.name}')">
+                                    📁 ${file.name}
+                                </a>
+                            </li>`;
+                        } else {
+                            content += `<li class="file">
+                                <a href="${file.download_url}" target="_blank">
+                                    📄 ${file.name}
+                                </a>
+                            </li>`;
+                        }
+                    });
+                    content += '</ul>';
+                    document.getElementById('content').innerHTML = content;
+                })
+                .catch(e => console.error(e));
+        }
+
+        loadFiles('');
+    </script>
+</body>
+</html>
+
