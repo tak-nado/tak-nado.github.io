@@ -1,83 +1,303 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Файловый менеджер</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Построитель Графиков</title>
+    <!-- Подключаем Chart.js через CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: Arial; margin: 20px; }
-        ul { list-style-type: none; padding: 0; }
-        li { margin: 5px 0; }
-        a { text-decoration: none; color: #0366d6; }
-        a:hover { text-decoration: underline; }
-        .file { color: #586069; }
-        .folder { color: #0366d6; font-weight: bold; }
-    </style>
-    
-    <!-- Яндекс.Метрика код -->
-    <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){
-            m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-            m[i].l=1*new Date();
-            for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-        })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=105645099', 'ym');
-
-        ym(105645099, 'init', {
-            ssr: true,
-            webvisor: true,
-            clickmap: true,
-            ecommerce: "dataLayer",
-            accurateTrackBounce: true,
-            trackLinks: true
-        });
-    </script>
-    <!-- /Яндекс.Метрика -->
-</head>
-<body>
-    <h1>Файловый менеджер</h1>
-    <div id="path"></div>
-    <div id="content"></div>
-
-    <script>
-        let currentPath = '';
-        
-        function loadFiles(path) {
-            currentPath = path || '';
-            document.getElementById('path').innerHTML = 
-                `<a href="#" onclick="loadFiles('')">Корневая папка</a>/${currentPath}`;
-            
-            fetch(`https://api.github.com/repos/tak-nado/SigmasEmpires/contents/${currentPath}`)
-                .then(r => r.json())
-                .then(files => {
-                    let content = '<ul>';
-                    files.forEach(file => {
-                        if (file.type === 'dir') {
-                            content += `<li class="folder">
-                                <a href="#" onclick="loadFiles('${currentPath ? currentPath + '/' : ''}${file.name}')">
-                                    📁 ${file.name}
-                                </a>
-                            </li>`;
-                        } else {
-                            content += `<li class="file">
-                                <a href="${file.download_url}" target="_blank">
-                                    📄 ${file.name}
-                                </a>
-                            </li>`;
-                        }
-                    });
-                    content += '</ul>';
-                    document.getElementById('content').innerHTML = content;
-                })
-                .catch(e => console.error(e));
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
         }
 
-        loadFiles('');
-    </script>
-    
-    <!-- Noscript часть для Яндекс.Метрики -->
-    <noscript>
-        <div>
-            <img src="https://mc.yandex.ru/watch/105645099" style="position:absolute; left:-9999px;" alt="" />
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Боковая панель управления */
+        .sidebar {
+            width: 360px;
+            background-color: #ffffff;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #7f8c8d;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #3498db;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: monospace;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .row > div {
+            flex: 1;
+        }
+
+        /* Кнопки */
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-success {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #27ae60;
+        }
+
+        /* Область графика */
+        .main-content {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .chart-container {
+            width: 100%;
+            max-width: 900px;
+            height: 80%;
+            max-height: 600px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Панель настроек -->
+    <div class="sidebar">
+        <h2>Настройки графика</h2>
+
+        <div class="form-group">
+            <label for="chartTitle">Название графика</label>
+            <input type="text" id="chartTitle" value="Мой 2D График">
         </div>
-    </noscript>
+
+        <div class="row">
+            <div class="form-group">
+                <label for="chartType">Тип графика</label>
+                <select id="chartType">
+                    <option value="line">Линейный (Line)</option>
+                    <option value="bar">Столбчатый (Bar)</option>
+                    <option value="scatter">Точечный (Scatter/XY)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="lineColor">Цвет</label>
+                <input type="color" id="lineColor" value="#3498db" style="height: 40px; padding: 2px;">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="labelsInput">Подписи оси X (через запятую)</label>
+            <input type="text" id="labelsInput" value="Январь, Февраль, Март, Апрель, Май, Июнь">
+        </div>
+
+        <div class="form-group">
+            <label for="dataInput">Данные оси Y (через запятую или X,Y для Scatter)</label>
+            <textarea id="dataInput" placeholder="Для Линейного/Столбчатого: 12, 19, 3, 5, 2, 3&#10;&#10;Для Точечного (XY):&#10;1, 5&#10;2, 10&#10;3, 7">12, 19, 3, 5, 2, 15</textarea>
+        </div>
+
+        <button class="btn-primary" onclick="updateChart()">Построить график</button>
+        <button class="btn-success" onclick="downloadChart()">Скачать PNG</button>
+    </div>
+
+    <!-- Область отображения -->
+    <div class="main-content">
+        <div class="chart-container">
+            <canvas id="myChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let myChart = null;
+
+        // Функция построения/обновления графика
+        function updateChart() {
+            const ctx = document.getElementById('myChart').getContext('2d');
+            const type = document.getElementById('chartType').value;
+            const title = document.getElementById('chartTitle').value;
+            const color = document.getElementById('lineColor').value;
+            const labelsRaw = document.getElementById('labelsInput').value;
+            const dataRaw = document.getElementById('dataInput').value;
+
+            // Подготовка подписей (Labels)
+            const labels = labelsRaw.split(',').map(item => item.trim());
+
+            // Подготовка данных
+            let datasets = [];
+
+            if (type === 'scatter') {
+                // Обработка данных для точечного графика (пары X,Y)
+                const lines = dataRaw.trim().split('\n');
+                const points = lines.map(line => {
+                    const parts = line.split(',');
+                    if (parts.length >= 2) {
+                        return { x: parseFloat(parts[0]), y: parseFloat(parts[1]) };
+                    }
+                    return null;
+                }).filter(p => p !== null);
+
+                datasets = [{
+                    label: title,
+                    data: points,
+                    backgroundColor: color,
+                    borderColor: color,
+                    pointRadius: 6
+                }];
+            } else {
+                // Обработка данных для обычного линейного/столбчатого графика
+                const dataValues = dataRaw.split(',').map(item => parseFloat(item.trim()) || 0);
+
+                datasets = [{
+                    label: title,
+                    data: dataValues,
+                    backgroundColor: type === 'bar' ? hexToRgba(color, 0.6) : hexToRgba(color, 0.2),
+                    borderColor: color,
+                    borderWidth: 2,
+                    fill: type === 'line', // Заливка под линией
+                    tension: 0.3 // Сглаживание линий
+                }];
+            }
+
+            // Если график уже существует — уничтожаем его перед перерисовкой
+            if (myChart) {
+                myChart.destroy();
+            }
+
+            // Создаем новый график
+            myChart = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: type === 'scatter' ? [] : labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: title,
+                            font: { size: 16 }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: type === 'scatter' ? 'linear' : 'category',
+                            position: 'bottom'
+                        },
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Вспомогательная функция для генерации цвета с прозрачностью (HEX -> RGBA)
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        // Функция скачивания графика в формате PNG
+        function downloadChart() {
+            if (!myChart) return;
+            const imageURI = myChart.toBase64Image();
+            const link = document.createElement('a');
+            link.download = 'chart.png';
+            link.href = imageURI;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Автоматический запуск при загрузке страницы
+        window.onload = () => {
+            updateChart();
+        };
+    </script>
 </body>
 </html>
